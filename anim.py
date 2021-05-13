@@ -16,7 +16,7 @@ cmap=plt.get_cmap('coolwarm_r')
 ### --- Parameters ---
 
 #fig, ax = subplots(figsize=(6,6))
-fig, ax = subplots(figsize=(12,12))
+fig, ax = plt.subplots(figsize=(12,12))
 #subplots_adjust(left=0, right=1, bottom=0, top=1)
 
 mx=magdata[0,1:Nx+1,1:Ny+1,0]
@@ -43,7 +43,7 @@ Q = ax.quiver(mx.T,my.T,pivot='mid',zorder=2,width=width, scale=scale, scale_uni
 
 #Q = ax.quiver(X, Y, U, V, pivot='mid', color='r', units='inches')
 
-mt = text(.5, .5, 't=%.2f' % 0., fontsize=15)
+mt = plt.text(.5, .5, 't=%.2f' % 0., fontsize=15)
 #mt = text(1.5, 1.5, 't=%.2f' % 0., fontsize=15)
 
 #time_text = text(.5, .5, '', fontsize=15)
@@ -73,7 +73,7 @@ else:
 #    anim = animation.FuncAnimation(fig, updatefig, np.arange(0, Nframes,100), init_func=init, interval=100, blit=True, repeat=False)   
 
 fig.tight_layout()
-gca().set_aspect('equal', adjustable='box')
+plt.gca().set_aspect('equal', adjustable='box')
 #axis('off')
 
-show()
+plt.show()

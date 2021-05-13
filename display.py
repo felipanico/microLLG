@@ -1,5 +1,7 @@
 from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
+from matplotlib import rc
+from matplotlib import pyplot as plt
 
 interpolation='nearest'
 #interpolation='gaussian'
@@ -15,7 +17,7 @@ cmap=plt.get_cmap('coolwarm_r')
 
 ### --- Parameters ---
 
-fig, ax = subplots(figsize=(6,6))
+fig, ax = plt.subplots(figsize=(6,6))
 #ax.set_title('(a)')
 
 frame=-1
@@ -37,4 +39,4 @@ fig.colorbar(im, label=r'$m_z$',orientation='vertical')
 
 #ax.set_xticks([])
 #ax.set_yticks([])
-show()
+plt.show()

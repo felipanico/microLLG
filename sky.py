@@ -1,8 +1,10 @@
 ####################(Python 3.5)###########################
 from pylab import *
+import numpy as np
 from numpy.ctypeslib import ndpointer, load_library
 from ctypes import *
 from scipy.special import j0
+import sys
 
 interpolation='nearest'
 #interpolation='gaussian'
@@ -28,68 +30,14 @@ alpha0=0.2
 beta0=0.
 jx=0.
 jy=0.
-#gammavalue = 0.0
-    
-#Nx=30
-#Ny=30
 
-### Iwasaki system
-#Nx=73
-#Ny=49
-#K=0.
-#dmi=0.18
-#bapp=0.0278
-
-#Nx=167
-#Ny=int(Nx/10)
-#Ny=4
-
-#AFM = True ### Nx, Ny should be even
+#AFM = True ### Nx, Ny should be even - Provavelmente AFM = Antiferromagnético
 AFM=False
 
 ### skyrmion lattice 
 gammavalue = 0.
-Nx=40
-Ny=40
-
-#gammavalue = 0.5
-#Nx=43
-#Ny=81
-
-#gammavalue = 1.0
-##Nx=65
-##Ny=129
-#Nx=63
-#Ny=131
-
-
-#Ny=int(Nx*np.sqrt(3.))
-
-### helix lattice 
-#Nx=int(2.*pi/dmi)
-#Ny=10
-
-### (a)
-#bapp=0.0278
-#gammavalue = 0.
-
-### (b)
-#bapp=0.01
-#gammavalue = 1.5
-
-### (c)
-#bapp=0.021
-#gammavalue = 3.3
-
-#bapp=0.0278
-#bapp=0.026 # critical field for skyrmion
-
-### stripe energy crossover
-#bapp=0.0297
-#gammavalue = 3.5
-
-#K=0.005
-#dmi=0.05
+Nx=3
+Ny=3
 
 dtout=20
 countout=round(dtout/dt)
@@ -103,18 +51,17 @@ except NameError:
     
 J0value = j0(gammavalue);
 
-mag = np.zeros((Nx+2,Ny+2,3),float64) ### including virtual nodes
+mag = np.zeros((Nx+2,Ny+2,3),np.float64) ### including virtual nodes
 magphys = mag[1:Nx+1,1:Ny+1,:] ### physical nodes
 
 dwind=30
 
 i0=int(Nx/2)
-#i0=dwind
 j0=int(Ny/2)
 irange = np.arange(Nx)
 jrange = np.arange(Ny)
 
-xT, yT = meshgrid(irange-i0, jrange-j0)
+xT, yT = np.meshgrid(irange-i0, jrange-j0)
 x=xT.T
 y=yT.T
 r=np.sqrt(x*x+y*y)+1.e-5
@@ -124,8 +71,6 @@ def prof(r):
 	return (r/r0)*np.exp(-(r-r0)/r0)
 
 def create_skyrmion():
-#    magphys[:,:,0] = prof(r)*x/r
-#    magphys[:,:,1] = prof(r)*y/r
     magphys[:,:,0] = -prof(r)*x/r
     magphys[:,:,1] = -prof(r)*y/r
     magphys[:,:,2] = np.sqrt(1.-magphys[:,:,0]*magphys[:,:,0]-magphys[:,:,1]*magphys[:,:,1])
@@ -140,29 +85,44 @@ def align_up():
 
 def stripes():
     nperiods=3
-    ks=2.*pi*nperiods/Nx
-    magphys[:,:,0] = np.cos(ks*x+pi/2.)
+    ks=2.*np.pi*nperiods/Nx
+    magphys[:,:,0] = np.cos(ks*x+np.pi/2.)
     magphys[:,:,1] = 0.
-    magphys[:,:,2] = -np.sin(ks*x+pi/2.)
+    magphys[:,:,2] = -np.sin(ks*x+np.pi/2.)
 
 def invstripes():
     nperiods=3
-    ks=2.*pi*nperiods/Nx
-    magphys[:,:,0] = -np.cos(ks*x+pi/2.)
+    ks=2.*np.pi*nperiods/Nx
+    magphys[:,:,0] = -np.cos(ks*x+np.pi/2.)
     magphys[:,:,1] = 0.
-    magphys[:,:,2] = -np.sin(ks*x+pi/2.)
+    magphys[:,:,2] = -np.sin(ks*x+np.pi/2.)
 
 def ini_rand():
     magphys[:,:,0] = np.sqrt(2.)*(np.random.rand(Nx,Ny)-0.5)
     magphys[:,:,1] = np.sqrt(2.)*(np.random.rand(Nx,Ny)-0.5)
-    magphys[:,:,2] = np.sqrt(1.-magphys[:,:,0]*magphys[:,:,0]-magphys[:,:,1]*magphys[:,:,1])
+    magphys[:,:,2] = np.sqrt(2.)*(np.random.rand(Nx,Ny)-0.5)
 
+def ini_rand2():
+    for i in range(Nx):
+        for j in range(Ny):
+            magx = i + 1
+            magy = j + 1
+            magz = magx + magy
+            
+            spin = [magx, magy, magz]
+
+            spin[0] = magx / np.sqrt(magx**2 + magy**2 + magz**2)
+            spin[1] = magy / np.sqrt(magx**2 + magy**2 + magz**2)
+            spin[2] = magz / np.sqrt(magx**2 + magy**2 + magz**2)
+
+            magphys[i][j] = spin
+    
 ks = 0.18
 def one_stripe():
     magphys[:,:,0] = 0.
     magphys[:,:,1] = 0.
     magphys[:,:,2] = 1.
-    inds = np.where((x[:,0]>-pi/ks)&(x[:,0]<pi/ks))
+    inds = np.where((x[:,0]>-np.pi/ks)&(x[:,0]<np.pi/ks))
     magphys[inds,:,0] = -np.sin(ks*x[inds,:])
     magphys[inds,:,1] = 0.
     magphys[inds,:,2] = -np.cos(ks*x[inds,:])
@@ -177,7 +137,7 @@ def one_sk(r,r0):
    
    
 nxcells=3
-k0=pi*nxcells/Nx
+k0=np.pi*nxcells/Nx
 ynew=y/np.sqrt(3.)
 def sk_lattice():
     magphys[:,:,0] = -np.cos(k0*2.*ynew)*np.sin(2.*k0*x)
@@ -185,7 +145,7 @@ def sk_lattice():
     magphys[:,:,2] = 2*(0.5-np.cos(k0*2.*ynew)*np.cos(k0*(x-ynew))*np.cos(k0*(x+ynew)))
 
 nxcells=1
-k0=pi*nxcells/Nx
+k0=np.pi*nxcells/Nx
 ynew=y/np.sqrt(3.)
 def sk_lattice_inverse():
     magphys[:,:,0] = np.cos(k0*2.*ynew)*np.sin(2.*k0*x)
@@ -223,20 +183,7 @@ def create_dwall_inplane():
     magphys[:,:,1] = -np.tanh(0.1*x)    
     magphys[:,:,2] = 0.
                    
-#align_up()
-#stripes()
-#invstripes()
-#ini_rand()
-create_skyrmion()
-#one_stripe()
-#sk_lattice()
-#sk_lattice_inverse()
-#helix_lattice()
-
-#create_dwall_x()
-#create_dwall_y()
-#create_dwall_z()
-#create_dwall_inplane()
+ini_rand()
 
 mag[0,1:Ny+1,:]=magphys[1,:,:]
 mag[Nx+1,1:Ny+1,:]=magphys[Nx-1,:,:]
@@ -259,13 +206,11 @@ if(AFM):
     mag[0::2,1::2] *= -1
     mag[1::2,0::2] *= -1
 
-magdata=np.empty((Nframes,Nx+2,Ny+2,3),dtype=float64)
+magdata=np.empty((Nframes,Nx+2,Ny+2,3),dtype=np.float64)
 magdata[0]=np.copy(mag)
+print(magdata[0])
 
 ### Run simulation
-#skmax = libcd.sky(Nx,Ny,magdata,Nframes,countout,normcount,dt,bapp,dmi,alpha0,beta0,K,jx,jy,J0value)
-#print('skmax:', skmax)
-
 Edensity = libcd.sky(Nx,Ny,magdata,Nframes,countout,normcount,dt,bapp,dmi,alpha0,beta0,K,jx,jy,J0value)
 
 if(AFM):
@@ -277,9 +222,11 @@ print('Relative energy density (x1000): %.6f' % (1000*reldensity))
             
 mag = np.copy(magdata[-1])
 
-def magsave(filename):
-    savetxt(filename,magdata[-1].ravel(),fmt='%11.8f')
-    print('#\n# Last frame saved to file '+filename)
+print(magdata)
+
+# def magsave(filename):
+#     savetxt(filename,magdata[-1].ravel(),fmt='%11.8f')
+#     print('#\n# Last frame saved to file '+filename)
 
 #np.savez('mag0',mag0=magdata[-1])
 #magsave("ic-switch-sk.dat")

@@ -132,83 +132,21 @@ void LLG_evolve(double *mag, double *mag_new, double dt) {
 			double beff[3] = {0., 0., bapp};
 			double magxbeff[3], magxmagxbeff[3], rhs[3];
 			
-			add_exchange(mag, i, j, beff);		
+//			add_exchange(mag, i, j, beff);		
 
-//			add_anisotropy_x(mag, i, j, beff);			
-//			add_anisotropy_y(mag, i, j, beff);				
-//			add_anisotropy_z(mag, i, j, beff);
-			
-			//add_DMI(mag, i, j, beff);
-			//add_DMI_DY(mag, i, j, beff);
-			add_DMI_renorm_J0value(mag, i, j, beff);
+			add_DMI(mag, i, j, beff);
 			
 			cross(&mag[ind(i,j)], beff, magxbeff);
 			cross(&mag[ind(i,j)], magxbeff, magxmagxbeff);
 
-			double tsst[3], magxtsst[3];
-			
-			sst_torque(mag, i, j, jx, jy, tsst);
-//			sst_torque_inplane(mag, i, j, jx, jy, tsst);	// Inplane torques is on		
-//			sst_torque_debug(mag, i, j, jx, jy, tsst); // debug
-			
-			cross(&mag[ind(i,j)],tsst,magxtsst);
-
 			for(n=0;n<3;n++)
-				rhs[n] = - magxbeff[n] - alpha*magxmagxbeff[n] + tsst[n] + alpha*magxtsst[n];
+				rhs[n] = - magxbeff[n] - alpha*magxmagxbeff[n];
 
 			for(n=0;n<3;n++)
 				mag_new[ind(i,j)+n] = mag[ind(i,j)+n] + dt*rhs[n];
 		}
     }
 }
-
-
-
-void LLG_inplane_evolve(double *mag, double *mag_new, double dt) {
-    int i, j, n;
-#pragma omp parallel default(none) private(i,j,n) shared(Nx,Ny,bapp,mag,mag_new,dt,alpha,alpha2,jx,jy)
-	{
-#pragma omp for schedule(static)    
-	for(i=1;i<=Nx;i++)
-		for(j=1;j<=Ny;j++) {
-
-			double beff[3] = {0., 0., bapp};
-			double magxbeff[3], magxmagxbeff[3], rhs[3];
-			
-			add_exchange(mag, i, j, beff);
-
-//			add_anisotropy_x(mag, i, j, beff);			
-//			add_anisotropy_y(mag, i, j, beff);			
-			add_anisotropy_z(mag, i, j, beff);			
-			
-			//add_DMI(mag, i, j, beff);
-			//add_DMI_DY(mag, i, j, beff);
-			add_DMI_renorm_J0value(mag, i, j, beff);
-			
-			cross(&mag[ind(i,j)], beff, magxbeff);
-			cross(&mag[ind(i,j)], magxbeff, magxmagxbeff);
-
-			double tsst[3], magxtsst[3];
-			sst_torque_inplane(mag, i, j, jx, jy, tsst);			
-			cross(&mag[ind(i,j)],tsst,magxtsst);
-
-			for(n=0;n<3;n++)
-				rhs[n] = - magxbeff[n] - alpha*magxmagxbeff[n] + tsst[n] + alpha*magxtsst[n];
-
-			double mx = mag[ind(i,j)];
-			double my = mag[ind(i,j)+1];									
-			double mz = mag[ind(i,j)+2];
-			double Z = rhs[2]/(1.+alpha2*mz*mz);
-			rhs[0] += -alpha*my*Z - alpha2*mx*mz*Z;
-			rhs[1] += alpha*mx*Z - alpha2*my*mz*Z;
-			rhs[2] = (1.+alpha2)*Z;
-			
-			for(n=0;n<3;n++)
-				mag_new[ind(i,j)+n] = mag[ind(i,j)+n] + dt*rhs[n];
-		}
-    }
-}
-
 
 void normalize(double *mag_new) { 
     int i, j, n;
@@ -222,7 +160,6 @@ void normalize(double *mag_new) {
                 mag_new[ind(i,j)+n] *= normalization;
         }
 }
-
 
 // Open boundary conditions
 void open_bc(double *mag) {
@@ -243,7 +180,6 @@ void open_bc(double *mag) {
 		for(n=0;n<3;n++)
 			mag[ind(Nx+1,j)+n] = mag[ind(Nx,j)+n];
 }
-
 
 // Periodic boundary conditions
 void periodic_bc(double *mag) {
@@ -450,7 +386,7 @@ void x_dwall_bc(double *mag) {
 // Add exchange interaction
 void add_exchange(double *mag, int i, int j, double *beff) {
 	int n;
-	for(n=0;n<3;n++)
+	for(n=0;n<3;n++) // x, y, z
 		beff[n] += EXCHANGE_SIGN*(mag[n+ind(i-1,j)] + mag[n+ind(i+1,j)] + mag[n+ind(i,j-1)] + mag[n+ind(i,j+1)]);
 }
 
@@ -470,20 +406,44 @@ void add_anisotropy_z(double *mag, int i, int j, double *beff) {
 	beff[2] += 2.*K*mag[ind(i,j)+2]; // along z
 }
 
-
-// Add exchange interaction
-/*void add_exchange_renormalized(double *mag, int i, int j, double *beff) {
-	int n;
-	for(n=0;n<3;n++)
-		beff[n] += Jx[n]*(mag[n+ind(i-1,j)] + mag[n+ind(i+1,j)]) + Jy[n]*(mag[n+ind(i,j-1)] + mag[n+ind(i,j+1)]);
-}*/
-
-
 // Add Dzyaloshinskii-Moriya interaction
 void add_DMI(double *mag, int i, int j, double *beff) {
+	/*
+	printf("\n i,j value ");
+	printf("%f", mag[indz(i,j)]);
+	printf("\n");
+	printf("\n j-1 value ");
+	printf("%f", mag[indz(i,j-1)]);
+	printf("\n");
+	printf("\n j+1 value ");
+	printf("%f", mag[indz(i,j+1)]);
+	printf("\n");
+	printf("\n i-1 value x ");
+	printf("%f", mag[indx(i-1,j)]);
+	printf("\n");
+	printf("\n i-1 value y");
+	printf("%f", mag[indy(i-1,j)]);
+	printf("\n");
+	printf("\n i-1 value z");
+	printf("%f", mag[indz(i-1,j)]);
+	printf("\n");
+	printf("\n i-1 value ");
+	printf("%f", mag[indz(i-1,j)]);
+	printf("\n");
+	*/
 	beff[0] += dmi*(mag[indz(i,j-1)]-mag[indz(i,j+1)]);
 	beff[1] += dmi*(mag[indz(i+1,j)]-mag[indz(i-1,j)]);
 	beff[2] += dmi*(mag[indx(i,j+1)]-mag[indy(i+1,j)]-mag[indx(i,j-1)]+mag[indy(i-1,j)]);
+	
+	/*
+	printf("%f", beff[0]);
+	printf("\n");
+	printf("%f", beff[1]);
+	printf("\n");
+	printf("%f", beff[2]);
+	printf("\n");
+	exit(0);
+	*/
 }
 
 // Add Dzyaloshinskii-Moriya interaction, Dima Yudin form
